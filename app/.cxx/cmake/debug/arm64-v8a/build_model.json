@@ -1,0 +1,70 @@
+{
+  "variant": {
+    "module": {
+      "rootBuildGradleFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg",
+      "sdkFolder": "C:\\Users\\solyd\\AppData\\Local\\Android\\Sdk",
+      "isNativeCompilerSettingsCacheEnabled": false,
+      "isBuildOnlyTargetAbiEnabled": true,
+      "splitsAbiFilterSet": [],
+      "intermediatesFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\build\\intermediates",
+      "gradleModulePathName": ":app",
+      "moduleRootFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app",
+      "makeFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\src\\main\\jni\\CMakeLists.txt",
+      "buildSystem": "CMAKE",
+      "compilerSettingsCacheFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\.cxx",
+      "cxxFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx",
+      "ndkFolder": "C:\\Users\\solyd\\AppData\\Local\\Android\\Sdk\\ndk\\24.0.8215888",
+      "ndkVersion": "24.0.8215888",
+      "ndkSupportedAbiList": [
+        "ARMEABI_V7A",
+        "ARM64_V8A",
+        "X86",
+        "X86_64"
+      ],
+      "ndkDefaultAbiList": [
+        "ARMEABI_V7A",
+        "ARM64_V8A",
+        "X86",
+        "X86_64"
+      ],
+      "cmakeToolchainFile": "."
+    },
+    "buildSystemArgumentList": [],
+    "cFlagList": [],
+    "cppFlagsList": [],
+    "variantName": "debug",
+    "soFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\build\\intermediates\\cmake\\debug\\lib",
+    "objFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\build\\intermediates\\cmake\\debug\\obj",
+    "jsonFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug",
+    "gradleBuildOutputFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug",
+    "isDebuggableEnabled": true,
+    "validAbiList": [
+      "ARMEABI_V7A",
+      "ARM64_V8A",
+      "X86",
+      "X86_64"
+    ],
+    "buildTargetSet": []
+  },
+  "abi": "ARM64_V8A",
+  "abiPlatformVersion": 24,
+  "cxxBuildFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a",
+  "jsonFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a\\android_gradle_build.json",
+  "gradleBuildOutputFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a",
+  "objFolder": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\build\\intermediates\\cmake\\debug\\obj\\arm64-v8a",
+  "buildCommandFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a\\build_command.txt",
+  "buildOutputFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a\\build_output.txt",
+  "modelOutputFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a\\build_model.json",
+  "cmake": {
+    "cmakeListsWrapperFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\CMakeLists.txt",
+    "toolchainWrapperFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\android_gradle_build.toolchain.cmake",
+    "buildGenerationStateFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\build_generation_state.json",
+    "cacheKeyFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\compiler_cache_key.json",
+    "compilerCacheUseFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\compiler_cache_use.json",
+    "compilerCacheWriteFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\compiler_cache_write.json",
+    "toolchainSettingsFromCacheFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cxx\\debug\\arm64-v8a\\compiler_settings_cache.cmake",
+    "cmakeWrappingBaseFolder": "."
+  },
+  "jsonGenerationLoggingRecordFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a\\json_generation_record.json",
+  "compileCommandsJsonFile": "C:\\workspace_mb\\ncnn-android-yolov8-seg\\app\\.cxx\\cmake\\debug\\arm64-v8a\\compile_commands.json"
+}
