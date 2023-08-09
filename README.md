@@ -1,5 +1,12 @@
 # ncnn-android-yolov8
 
+세팅 : 
+https://drive.google.com/file/d/1phFkh1kZdwHrgnRs_dCa9d-PxyZMhGHy/view?usp=drive_link
+
+코드 분석 : 
+https://drive.google.com/file/d/1F17F0BG67ASGCXr7XNfU99iKZs2ECW5L/view?usp=drive_link
+
+---
 The yolov8 object detection
 
 This is a sample ncnn android project, it depends on ncnn library and opencv
