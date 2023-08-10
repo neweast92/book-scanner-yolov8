@@ -242,7 +242,7 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
             // float IoU = inter_area / union_area
-            if (inter_area / union_area > nms_threshold)
+            if (inter_area / union_area > nms_threshold or i != 0)
                 keep = 0;
         }
 
