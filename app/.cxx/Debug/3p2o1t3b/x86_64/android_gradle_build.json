@@ -1,0 +1,40 @@
+{
+  "stringTable": {},
+  "buildFiles": [
+    "C:\\workspace_mb\\book-scanner-yolov8\\app\\src\\main\\jni\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\solyd\\AppData\\Local\\Android\\Sdk\\cmake\\3.10.2.4988404\\bin\\ninja.exe",
+      "-C",
+      "C:\\workspace_mb\\book-scanner-yolov8\\app\\.cxx\\Debug\\3p2o1t3b\\x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\solyd\\AppData\\Local\\Android\\Sdk\\cmake\\3.10.2.4988404\\bin\\ninja.exe",
+    "-C",
+    "C:\\workspace_mb\\book-scanner-yolov8\\app\\.cxx\\Debug\\3p2o1t3b\\x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "yolov8ncnn-Debug-x86_64": {
+      "buildCommandComponents": [
+        "C:\\Users\\solyd\\AppData\\Local\\Android\\Sdk\\cmake\\3.10.2.4988404\\bin\\ninja.exe",
+        "-C",
+        "C:\\workspace_mb\\book-scanner-yolov8\\app\\.cxx\\Debug\\3p2o1t3b\\x86_64",
+        "yolov8ncnn"
+      ],
+      "buildType": "debug",
+      "abi": "x86_64",
+      "artifactName": "yolov8ncnn",
+      "output": "C:\\workspace_mb\\book-scanner-yolov8\\app\\build\\intermediates\\cxx\\Debug\\3p2o1t3b\\obj\\x86_64\\libyolov8ncnn.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {},
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

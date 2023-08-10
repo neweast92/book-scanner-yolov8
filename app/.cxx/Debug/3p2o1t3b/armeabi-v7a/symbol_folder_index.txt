@@ -1,0 +1,1 @@
+C:\workspace_mb\book-scanner-yolov8\app\build\intermediates\cxx\Debug\3p2o1t3b\obj\armeabi-v7a

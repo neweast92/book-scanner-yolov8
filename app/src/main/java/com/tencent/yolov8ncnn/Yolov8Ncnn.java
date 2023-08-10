@@ -24,6 +24,7 @@ public class Yolov8Ncnn
     public native boolean openCamera(int facing);
     public native boolean closeCamera();
     public native boolean setOutputWindow(Surface surface);
+    public native CaptureData getCaptureData();
 
     static {
         System.loadLibrary("yolov8ncnn"); // load the library of yolov8ncnn

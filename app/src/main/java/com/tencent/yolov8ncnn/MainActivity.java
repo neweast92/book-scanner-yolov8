@@ -33,6 +33,8 @@ import android.widget.Spinner;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 
+import java.io.Serializable;
+
 public class MainActivity extends Activity implements SurfaceHolder.Callback
 {
     public static final int REQUEST_CAMERA = 100;
@@ -113,8 +115,35 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback
         });
 
 
+        // 캡쳐버튼; 클릭하면 해당 시점의 이미지와 segmentation에서 가장자리 교차점의 좌표를 반환받기
+        Button buttonCapture = (Button) findViewById(R.id.buttonCapture);
+        buttonCapture.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+
+                CaptureData captureData = yolov8ncnn.getCaptureData();
+                //buttonCapture.setText(captureData.score+"");
+                //buttonCapture.setText(captureData.vtx[0].toString());
+                buttonCapture.setText(
+                        "w:"+captureData.img.getWidth()
+                                +","
+                                +"h:"+captureData.img.getHeight()
+                );
+
+                //
+//                Intent modIntent = new Intent(MainActivity.this, ModifyActivity.class);
+//                modIntent.putExtra("captureData", captureData);
+//                startActivity(modIntent);
+                //finish();
+            }
+        });
+
         reload();
     }
+
+    //추가
+    //@Override
+    //private void onDestor
 
     private void reload()
     {

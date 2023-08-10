@@ -660,7 +660,7 @@ int Yolo::draw(cv::Mat& rgb, const std::vector<Object>& objects)
             uchar* image_ptr = rgb.ptr(y);
             const float* mask_ptr = obj.mask.ptr<float>(y);
             for (int x = 0; x < rgb.cols; x++) {
-                if (mask_ptr[x] >= 0.5)
+                if (mask_ptr[x] >= 0.65)
                 {
                     image_ptr[0] = cv::saturate_cast<uchar>(image_ptr[0] * 0.5 + color[2] * 0.5);
                     image_ptr[1] = cv::saturate_cast<uchar>(image_ptr[1] * 0.5 + color[1] * 0.5);

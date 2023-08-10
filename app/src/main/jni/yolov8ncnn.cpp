@@ -48,7 +48,7 @@ static int draw_unsupported(cv::Mat& rgb)
     int x = (rgb.cols - label_size.width) / 2;
 
     cv::rectangle(rgb, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-                    cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(rgb, text, cv::Point(x, y + label_size.height),
                 cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 0));
@@ -102,7 +102,7 @@ static int draw_fps(cv::Mat& rgb)
     int x = rgb.cols - label_size.width;
 
     cv::rectangle(rgb, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-                    cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(rgb, text, cv::Point(x, y + label_size.height),
                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
@@ -182,28 +182,28 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_Yolov8Ncnn_loadModel(JNIE
     __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "loadModel %p", mgr);
 
     const char* modeltypes[] =
-    {
-        "n",
-        "s",
-    };
+            {
+                    "n",
+                    "s",
+            };
 
     const int target_sizes[] =
-    {
-        320,
-        320,
-    };
+            {
+                    320,
+                    320,
+            };
 
     const float mean_vals[][3] =
-    {
-        {103.53f, 116.28f, 123.675f},
-        {103.53f, 116.28f, 123.675f},
-    };
+            {
+                    {103.53f, 116.28f, 123.675f},
+                    {103.53f, 116.28f, 123.675f},
+            };
 
     const float norm_vals[][3] =
-    {
-        { 1 / 255.f, 1 / 255.f, 1 / 255.f },
-        { 1 / 255.f, 1 / 255.f, 1 / 255.f },
-    };
+            {
+                    { 1 / 255.f, 1 / 255.f, 1 / 255.f },
+                    { 1 / 255.f, 1 / 255.f, 1 / 255.f },
+            };
 
     const char* modeltype = modeltypes[(int)modelid];
     int target_size = target_sizes[(int)modelid];
