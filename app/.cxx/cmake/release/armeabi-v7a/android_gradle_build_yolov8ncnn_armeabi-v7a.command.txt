@@ -1,7 +1,0 @@
-Executable : C:\Users\Bai\AppData\Local\Android\Sdk\cmake\3.10.2.4988404\bin\ninja.exe
-arguments : 
--C
-D:\ncnn-android-yolov8-seg\app\.cxx\cmake\release\armeabi-v7a
-yolov8ncnn
-jvmArgs : 
-

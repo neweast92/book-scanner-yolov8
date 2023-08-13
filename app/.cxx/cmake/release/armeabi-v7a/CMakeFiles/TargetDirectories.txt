@@ -1,3 +1,0 @@
-D:/ncnn-android-yolov8-seg/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/yolov8ncnn.dir
-D:/ncnn-android-yolov8-seg/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/edit_cache.dir
-D:/ncnn-android-yolov8-seg/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/rebuild_cache.dir

@@ -1,1 +1,1 @@
-C:\workspace_mb\book-scanner-yolov8\app\src\main\jni\CMakeLists.txt
+D:\mb_workspace\book-scanner-yolov8\app\src\main\jni\CMakeLists.txt

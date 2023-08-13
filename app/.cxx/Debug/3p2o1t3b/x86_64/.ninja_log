@@ -1,8 +1,11 @@
 # ninja log v5
-16	1119	713371382	CMakeFiles/yolov8ncnn.dir/ndkcamera.cpp.o	1031e63cd0daece1
-29	1258	713371383	CMakeFiles/yolov8ncnn.dir/yolov8ncnn.cpp.o	a78783b8cf2d0275
-1	1398	713371383	CMakeFiles/yolov8ncnn.dir/yolo.cpp.o	5d88ec8612b96efb
-1398	2406	713371384	C:/workspace_mb/book-scanner-yolov8/app/build/intermediates/cxx/Debug/3p2o1t3b/obj/x86_64/libyolov8ncnn.so	9bc5c5013c4079c0
-74	1404	713376486	CMakeFiles/yolov8ncnn.dir/yolov8ncnn.cpp.o	a78783b8cf2d0275
-8	1542	713376486	CMakeFiles/yolov8ncnn.dir/yolo.cpp.o	5d88ec8612b96efb
-1542	2261	713376487	C:/workspace_mb/book-scanner-yolov8/app/build/intermediates/cxx/Debug/3p2o1t3b/obj/x86_64/libyolov8ncnn.so	9bc5c5013c4079c0
+15	727	713618665	CMakeFiles/yolov8ncnn.dir/ndkcamera.cpp.o	824c96c3249b18db
+1	794	713618665	CMakeFiles/yolov8ncnn.dir/yolov8ncnn.cpp.o	a4928fb35de16014
+7	894	713618666	CMakeFiles/yolov8ncnn.dir/yolo.cpp.o	34ec33aae550620d
+894	1565	713618666	D:/mb_workspace/book-scanner-yolov8/app/build/intermediates/cxx/Debug/3p2o1t3b/obj/x86_64/libyolov8ncnn.so	bb466fbec5a424d0
+0	11	0	clean	474aebf761803bd1
+0	10	0	clean	474aebf761803bd1
+10	691	713618816	CMakeFiles/yolov8ncnn.dir/ndkcamera.cpp.o	824c96c3249b18db
+3	786	713618816	CMakeFiles/yolov8ncnn.dir/yolov8ncnn.cpp.o	a4928fb35de16014
+17	890	713618817	CMakeFiles/yolov8ncnn.dir/yolo.cpp.o	34ec33aae550620d
+890	1073	713618817	D:/mb_workspace/book-scanner-yolov8/app/build/intermediates/cxx/Debug/3p2o1t3b/obj/x86_64/libyolov8ncnn.so	bb466fbec5a424d0

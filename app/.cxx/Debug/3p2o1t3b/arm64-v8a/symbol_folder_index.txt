@@ -1,1 +1,1 @@
-C:\workspace_mb\book-scanner-yolov8\app\build\intermediates\cxx\Debug\3p2o1t3b\obj\arm64-v8a
+D:\mb_workspace\book-scanner-yolov8\app\build\intermediates\cxx\Debug\3p2o1t3b\obj\arm64-v8a

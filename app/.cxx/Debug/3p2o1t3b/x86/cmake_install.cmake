@@ -1,4 +1,4 @@
-# Install script for directory: C:/workspace_mb/book-scanner-yolov8/app/src/main/jni
+# Install script for directory: D:/mb_workspace/book-scanner-yolov8/app/src/main/jni
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/workspace_mb/book-scanner-yolov8/app/.cxx/Debug/3p2o1t3b/x86/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "D:/mb_workspace/book-scanner-yolov8/app/.cxx/Debug/3p2o1t3b/x86/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

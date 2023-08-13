@@ -1,3 +1,0 @@
-C:/workspace_mb/book-scanner-yolov8/app/.cxx/RelWithDebInfo/462k2f71/x86/CMakeFiles/yolov8ncnn.dir
-C:/workspace_mb/book-scanner-yolov8/app/.cxx/RelWithDebInfo/462k2f71/x86/CMakeFiles/edit_cache.dir
-C:/workspace_mb/book-scanner-yolov8/app/.cxx/RelWithDebInfo/462k2f71/x86/CMakeFiles/rebuild_cache.dir
