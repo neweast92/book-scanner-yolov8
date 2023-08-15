@@ -118,9 +118,10 @@ static void onImageAvailable(void* context, AImageReader* reader)
                 }
             }
         }
-
+        // context 포인터를 NdkCamera 클래스의 포인터로 캐스팅 후 on_image 함수 호출
         ((NdkCamera*)context)->on_image((unsigned char*)nv21, (int)width, (int)height);
 
+        // 메모리 해제
         delete[] nv21;
     }
 
@@ -180,7 +181,7 @@ NdkCamera::NdkCamera()
 
     // setup imagereader and its surface
     {
-        AImageReader_new(640, 480, AIMAGE_FORMAT_YUV_420_888, /*maxImages*/2, &image_reader);
+        AImageReader_new(1280, 960, AIMAGE_FORMAT_YUV_420_888, /*maxImages*/2, &image_reader);
 
         AImageReader_ImageListener listener;
         listener.context = this;
@@ -376,6 +377,7 @@ void NdkCamera::on_image(const cv::Mat& rgb) const
 {
 }
 
+// const: 매개변수 수정 방지. NdkCameraWindow 자식 클래스에서 재정의됨
 void NdkCamera::on_image(const unsigned char* nv21, int nv21_width, int nv21_height) const
 {
     // rotate nv21
@@ -436,6 +438,7 @@ NdkCameraWindow::NdkCameraWindow() : NdkCamera()
     accelerometer_sensor = ASensorManager_getDefaultSensor(sensor_manager, ASENSOR_TYPE_ACCELEROMETER);
 }
 
+// 소멸자 (객체 소멸 시 자동으로 호출)
 NdkCameraWindow::~NdkCameraWindow()
 {
     if (accelerometer_sensor)
@@ -455,33 +458,34 @@ NdkCameraWindow::~NdkCameraWindow()
         ANativeWindow_release(win);
     }
 }
-
+// ANativeWindow : Android에서 그래픽 관련 작업 수행하는 객체
 void NdkCameraWindow::set_window(ANativeWindow* _win)
 {
     if (win)
     {
-        ANativeWindow_release(win);
+        ANativeWindow_release(win); // 이전 네이티브 윈도우의 참조 해제
     }
 
-    win = _win;
-    ANativeWindow_acquire(win);
+    win = _win; // 현재의 새로운 윈도우로 업데이트
+    ANativeWindow_acquire(win); // 해당 윈도우에 대한 참조를 추가하여 카메라 객체가 그려질 윈도우를 업데이트
 }
 
-void NdkCameraWindow::on_image_render(cv::Mat& rgb) const
+void NdkCameraWindow::on_image_render(cv::Mat& rgb) const // 자식 클래스인 MyNdkCamera에서 재정의 (yolov8ncnn.cpp)
 {
 }
 
 void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv21_height) const
 {
-    // resolve orientation from camera_orientation and accelerometer_sensor
+    // resolve orientation from camera_orientation and accelerometer_sensor(가속도 센서)
     {
         if (!sensor_event_queue)
         {
+            // 이벤트 큐 생성
             sensor_event_queue = ASensorManager_createEventQueue(sensor_manager, ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS), NDKCAMERAWINDOW_ID, 0, 0);
-
+            // 가속도 센서(디바이스의 가속도 정보 제공) 활성화
             ASensorEventQueue_enableSensor(sensor_event_queue, accelerometer_sensor);
         }
-
+        // 이벤트 루프 돌면서 특정 이벤트 처리
         int id = ALooper_pollAll(0, 0, 0, 0);
         if (id == NDKCAMERAWINDOW_ID)
         {
@@ -501,9 +505,9 @@ void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv
                 float acceleration_z = e[num_event - 1].acceleration.z;
 //                 __android_log_print(ANDROID_LOG_WARN, "NdkCameraWindow", "x = %f, y = %f, z = %f", x, y, z);
 
-                if (acceleration_y > 7)
+                if (acceleration_y > 7) // 이 임계치를 넘으면
                 {
-                    accelerometer_orientation = 0;
+                    accelerometer_orientation = 0; // 디바이스 방향 설정
                 }
                 if (acceleration_x < -7)
                 {
@@ -535,6 +539,7 @@ void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv
     int render_h = 0;
     int render_rotate_type = 0;
     {
+        // 윈도우의 너비와 크기 가져옴. UI 레이아웃 조정을 위함
         int win_w = ANativeWindow_getWidth(win);
         int win_h = ANativeWindow_getHeight(win);
 
@@ -543,18 +548,19 @@ void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv
             std::swap(win_w, win_h);
         }
 
+        // 카메라 방향과 디바이스 방향으로 최종적인 화면 방향 계산 (0/90/180/270)
         const int final_orientation = (camera_orientation + accelerometer_orientation) % 360;
 
         if (final_orientation == 0 || final_orientation == 180)
         {
-            if (win_w * nv21_height > win_h * nv21_width)
+            if (win_w * nv21_height > win_h * nv21_width) // 윈도우 너비와 이미지 높이를 비교하여 이미지의 가로 방향이 더 긴 경우
             {
-                roi_w = nv21_width;
-                roi_h = (nv21_width * win_h / win_w) / 2 * 2;
+                roi_w = nv21_width; // 이미지 가로를 윈도우에 맞추고
+                roi_h = (nv21_width * win_h / win_w) / 2 * 2; // 높이를 비율에 맞게 계산
                 roi_x = 0;
                 roi_y = ((nv21_height - roi_h) / 2) / 2 * 2;
             }
-            else
+            else // 이미지 세로 방향이 더 긴 경우
             {
                 roi_h = nv21_height;
                 roi_w = (nv21_height * win_w / win_h) / 2 * 2;
@@ -704,52 +710,63 @@ void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv
     }
 
     // crop and rotate nv21
+    // 이미지를 원하는 부분만 잘라내고 회전
+
+    // Mat 객체인 nv21_croprotated 변수 생성. (세로, 가로, 8비트 단일 채널 이미지)
     cv::Mat nv21_croprotated(roi_h + roi_h / 2, roi_w, CV_8UC1);
     {
-        const unsigned char* srcY = nv21 + nv21_roi_y * nv21_width + nv21_roi_x;
-        unsigned char* dstY = nv21_croprotated.data;
+        const unsigned char* srcY = nv21 + nv21_roi_y * nv21_width + nv21_roi_x; // nv21 이미지에서 크롭된 Y 데이터
+        unsigned char* dstY = nv21_croprotated.data; // 복사할 대상
+        // kanna_rotate_c1, c2: 이미지 크롭과 회전 수행
         ncnn::kanna_rotate_c1(srcY, nv21_roi_w, nv21_roi_h, nv21_width, dstY, roi_w, roi_h, roi_w, rotate_type);
 
-        const unsigned char* srcUV = nv21 + nv21_width * nv21_height + nv21_roi_y * nv21_width / 2 + nv21_roi_x;
-        unsigned char* dstUV = nv21_croprotated.data + roi_w * roi_h;
+        const unsigned char* srcUV = nv21 + nv21_width * nv21_height + nv21_roi_y * nv21_width / 2 + nv21_roi_x; // 크롭된 UV 데이터
+        unsigned char* dstUV = nv21_croprotated.data + roi_w * roi_h; // 복사할 대상
         ncnn::kanna_rotate_c2(srcUV, nv21_roi_w / 2, nv21_roi_h / 2, nv21_width, dstUV, roi_w / 2, roi_h / 2, roi_w, rotate_type);
     }
 
-    // nv21_croprotated to rgb
+    // 크롭된 YUV 이미지 데이터인 nv21_croprotated을 RGB 형식의 이미지로 변환하여 저장할 Mat 객체 rgb 생성
     cv::Mat rgb(roi_h, roi_w, CV_8UC3);
     ncnn::yuv420sp2rgb(nv21_croprotated.data, roi_w, roi_h, rgb.data);
 
+    // rgb로 바운딩 박스, 마스크 영역 찾아서 그리고 fps 그림
     on_image_render(rgb);
 
     // rotate to native window orientation
+    // 표시할 이미지의 크기에 맞게 rgb_render 이미지 생성하여 윈도우 방향에 맞게 회전
     cv::Mat rgb_render(render_h, render_w, CV_8UC3);
     ncnn::kanna_rotate_c3(rgb.data, roi_w, roi_h, rgb_render.data, render_w, render_h, render_rotate_type);
 
+    // 네이티브 윈도우의 버퍼 지오메트리를 설정
     ANativeWindow_setBuffersGeometry(win, render_w, render_h, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM);
 
+    // 네이티브 윈도우를 잠금(lock)하고 버퍼 정보를 but에 가져옴
     ANativeWindow_Buffer buf;
     ANativeWindow_lock(win, &buf, NULL);
 
     // scale to target size
+    // 버퍼의 포맷이 RGBA이면 이미지 스케일링 및 컬러 채널 변환 작업 후 rgb_render 이미지 데이터를 버퍼에 채움
     if (buf.format == AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM || buf.format == AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM)
     {
-        for (int y = 0; y < render_h; y++)
+        for (int y = 0; y < render_h; y++) // 버퍼의 높이(행)에 대한 루프
         {
-            const unsigned char* ptr = rgb_render.ptr<const unsigned char>(y);
-            unsigned char* outptr = (unsigned char*)buf.bits + buf.stride * 4 * y;
+            const unsigned char* ptr = rgb_render.ptr<const unsigned char>(y); // rgb_render 이미지에서 현재 행에 대한 포인터 ptr 가져옴 = 현재 행의 이미지 데이터를 가리킴
+            unsigned char* outptr = (unsigned char*)buf.bits + buf.stride * 4 * y; // 버퍼의 현재 행에 대한 포인터 outptr 계산. buf.bits: 버퍼의 시작 위치. 각 행마다 4바이트(ARGB)로 이루어져 있기에 buf.stride * 4 * y 만큼 이동
+
 
             int x = 0;
-#if __ARM_NEON
+#if __ARM_NEON // ARM 아키텍처의 NEON 기능 지원 여부 확인하는 프리프로세서 지시문
             for (; x + 7 < render_w; x += 8)
             {
                 uint8x8x3_t _rgb = vld3_u8(ptr);
                 uint8x8x4_t _rgba;
-                _rgba.val[0] = _rgb.val[0];
-                _rgba.val[1] = _rgb.val[1];
-                _rgba.val[2] = _rgb.val[2];
-                _rgba.val[3] = vdup_n_u8(255);
-                vst4_u8(outptr, _rgba);
+                _rgba.val[0] = _rgb.val[0]; // R
+                _rgba.val[1] = _rgb.val[1]; // G
+                _rgba.val[2] = _rgb.val[2]; // B
+                _rgba.val[3] = vdup_n_u8(255); // A
+                vst4_u8(outptr, _rgba); // 읽어온 RGB 데이터를 RGBA 형식으로 변환 후 outptr 위치에 저장 (버퍼에 채움)
 
+                // 포인터 증가시킴
                 ptr += 24;
                 outptr += 32;
             }
@@ -767,5 +784,6 @@ void NdkCameraWindow::on_image(const unsigned char* nv21, int nv21_width, int nv
         }
     }
 
+    // 네이티브 윈도우의 잠금 해제 후 수정된 버퍼를 윈도우에 반영
     ANativeWindow_unlockAndPost(win);
 }

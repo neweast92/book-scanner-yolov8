@@ -352,18 +352,64 @@ static void generate_grids_and_stride(const int target_w, const int target_h, st
         }
     }
 }
+
+/*
+     * mask_feat: 객체의 마스크 특징
+     * img_w, img_h: 원본 이미지의 너비와 높이
+     * in_pad: 패딩된 입력 이미지
+     * mask_proto: 출력 마스크
+     * wpad, hpad: 너비와 높이에 추가된 패딩값
+     * mask_pred_result: 디코딩된 마스크 결과를 저장할 Mat
+     * */
 static void decode_mask(const ncnn::Mat& mask_feat, const int& img_w, const int& img_h,
                         const ncnn::Mat& mask_proto, const ncnn::Mat& in_pad, const int& wpad, const int& hpad,
                         ncnn::Mat& mask_pred_result)
 {
     ncnn::Mat masks;
-    matmul(std::vector<ncnn::Mat>{mask_feat, mask_proto}, masks);
-    sigmoid(masks);
-    reshape(masks, masks, masks.h, in_pad.h / 4, in_pad.w / 4, 0);
-    slice(masks, mask_pred_result, (wpad / 2) / 4, (in_pad.w - wpad / 2) / 4, 2);
-    slice(mask_pred_result, mask_pred_result, (hpad / 2) / 4, (in_pad.h - hpad / 2) / 4, 1);
-    interp(mask_pred_result, 4.0, img_w, img_h, mask_pred_result);
+    matmul(std::vector<ncnn::Mat>{mask_feat, mask_proto}, masks); // 행렬곱하여 masks에 저장
+    sigmoid(masks); // 각 요소에 시그모이드 함수 적용
+    reshape(masks, masks, masks.h, in_pad.h / 4, in_pad.w / 4, 0); // masks 모양을 변경하여 해당 마스크의 높이와 패딩된 입력의 너비와 높이의 1/4로 설정
+    slice(masks, mask_pred_result, (wpad / 2) / 4, (in_pad.w - wpad / 2) / 4, 2); // masks의 너비를 wpad/2 부터 in_pad.w - wpad/2 사이로 슬라이스하여 mask_pred_result에 저장
+    slice(mask_pred_result, mask_pred_result, (hpad / 2) / 4, (in_pad.h - hpad / 2) / 4, 1); // mask_pred_result의 높이를 hpad/2 부터 in_pad.h - hpad/2 사이로 슬라이스하여 다시 저장
+    interp(mask_pred_result, 4.0, img_w, img_h, mask_pred_result); // mask_pred_result의 크기를 조정하여 원본 이미지 크기에 맞게 변경
 
+}
+
+
+// Calculate slope and y-intercept using Least Squares Method
+float calculateSlope(const std::vector<cv::Point2i>& points) {
+    int n = points.size();
+    if(n == 0) return 0;
+
+    float sum_x = 0, sum_y = 0, sum_x2 = 0, sum_xy = 0;
+    for(const auto& point : points) {
+        sum_x += point.x;
+        sum_y += point.y;
+        sum_x2 += point.x * point.x;
+        sum_xy += point.x * point.y;
+    }
+    float m = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x);
+    return m;
+}
+
+float calculateIntercept(const std::vector<cv::Point2i>& points, float slope) {
+    if(points.size() == 0) return 0;
+
+    float mean_y = 0, mean_x = 0;
+    for(const auto& point : points) {
+        mean_x += point.x;
+        mean_y += point.y;
+    }
+    mean_x /= points.size();
+    mean_y /= points.size();
+
+    return mean_y - slope * mean_x;
+}
+
+cv::Point2f findIntersection(float m1, float c1, float m2, float c2) {
+    float x = (c2 - c1) / (m1 - m2);
+    float y = m1 * x + c1;
+    return cv::Point2f(x, y);
 }
 
 
@@ -414,17 +460,18 @@ int Yolo::load(const char* modeltype, int _target_size, const float* _mean_vals,
 
 int Yolo::load(AAssetManager* mgr, const char* modeltype, int _target_size, const float* _mean_vals, const float* _norm_vals, bool use_gpu)
 {
+    // 각각의 객체와 할당자를 초기 상태로 리셋
     yolo.clear();
     blob_pool_allocator.clear();
     workspace_pool_allocator.clear();
 
-    ncnn::set_cpu_powersave(2);
-    ncnn::set_omp_num_threads(ncnn::get_big_cpu_count());
+    ncnn::set_cpu_powersave(2); // CPU 파워 세이브 모드를 설정. 2 -> 최대성능모드
+    ncnn::set_omp_num_threads(ncnn::get_big_cpu_count()); // OpenMP로 사용할 스레드 개수를 big CPU 코어수만큼 설정
 
     yolo.opt = ncnn::Option();
 
 #if NCNN_VULKAN
-    yolo.opt.use_vulkan_compute = use_gpu;
+    yolo.opt.use_vulkan_compute = use_gpu; // GPU 사용한 연산 수행 여부
 #endif
 
     yolo.opt.num_threads = ncnn::get_big_cpu_count();
@@ -439,19 +486,21 @@ int Yolo::load(AAssetManager* mgr, const char* modeltype, int _target_size, cons
     yolo.load_param(mgr, parampath);
     yolo.load_model(mgr, modelpath);
 
-    target_size = _target_size;
-    mean_vals[0] = _mean_vals[0];
+    target_size = _target_size; // 대상 이미지 크기
+    mean_vals[0] = _mean_vals[0]; // 이미지 전처리 위한 평균값
     mean_vals[1] = _mean_vals[1];
     mean_vals[2] = _mean_vals[2];
-    norm_vals[0] = _norm_vals[0];
+    norm_vals[0] = _norm_vals[0]; // 정규화값
     norm_vals[1] = _norm_vals[1];
     norm_vals[2] = _norm_vals[2];
 
     return 0;
 }
 
+// prob_threshold: 확률 임계값. 이보다 낮은 객체는 무시
 int Yolo::detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_threshold, float nms_threshold)
 {
+    // 이미지의 가로 세로 크기
     int width = rgb.cols;
     int height = rgb.rows;
 
@@ -459,6 +508,7 @@ int Yolo::detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_th
     int w = width;
     int h = height;
     float scale = 1.f;
+    // 가로 세로 중 긴 쪽을 target_size에 맞추고, 다른 쪽은 그에 따라 비율에 맞게 조절
     if (w > h)
     {
         scale = (float)target_size / w;
@@ -472,16 +522,20 @@ int Yolo::detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_th
         w = w * scale;
     }
 
+    //입력 이미지를 지정된 크기 w, h로 크기 조절하고, BGR 형식으로 변환
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(rgb.data, ncnn::Mat::PIXEL_RGB2BGR, width, height, w, h);
 
     // pad to target_size rectangle
+    // 이미지를 MAX_STRIDE의 배수로 패딩하여 직사각형 모양으로 만듦
     int wpad = (w + MAX_STRIDE-1) / MAX_STRIDE * MAX_STRIDE - w;
     int hpad = (h + MAX_STRIDE-1) / MAX_STRIDE * MAX_STRIDE - h;
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 0.f);
 
+    // 정규화
     in_pad.substract_mean_normalize(0, norm_vals);
 
+    // 추론
     ncnn::Extractor ex = yolo.create_extractor();
 
     ex.input("images", in_pad);
@@ -492,19 +546,23 @@ int Yolo::detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_th
     ncnn::Mat mask_proto;
     ex.extract("output1", mask_proto);
 
+    // 그리드와 스트라이드 생성
     std::vector<int> strides = {8, 16, 32}; // might have stride=64
     std::vector<GridAndStride> grid_strides;
     generate_grids_and_stride(in_pad.w, in_pad.h, strides, grid_strides);
 
+    // 출력에서 객체 제안을 생성
     std::vector<Object> proposals;
     std::vector<Object> objects8;
     generate_proposals(grid_strides, out, prob_threshold, objects8);
     proposals.insert(proposals.end(), objects8.begin(), objects8.end());
 
     // sort all proposals by score from highest to lowest
+    // 점수로 내림차순 정렬
     qsort_descent_inplace(proposals);
 
     // apply nms with nms_threshold
+    // NMS 적용
     std::vector<int> picked;
     nms_sorted_bboxes(proposals, picked, nms_threshold);
 
@@ -516,9 +574,11 @@ int Yolo::detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_th
         std::memcpy(mask_feat_ptr, proposals[picked[i]].mask_feat.data(), sizeof(float) * proposals[picked[i]].mask_feat.size());
     }
 
+    // 마스크 정보를 디코딩하여 원래 이미지 크기에 맞게 크기 조절
     ncnn::Mat mask_pred_result;
     decode_mask(mask_feat, width, height, mask_proto, in_pad, wpad, hpad, mask_pred_result);
 
+    // objects 벡터에 최종 탐지된 객체의 위치와 크기를 원래 이미지 크기로 저장, 클리핑하여 경계를 넘어가지 않도록 하여 저장
     objects.resize(count);
     for (int i = 0; i < count; i++)
     {
@@ -646,8 +706,10 @@ int Yolo::draw(cv::Mat& rgb, const std::vector<Object>& objects)
             {245, 255, 0}
     };
     int color_index = 0;
+    // 객체 수만큼 루프
     for (size_t i = 0; i < objects.size(); i++)
     {
+        // 현재 객체 정보 obj 가져오고, 색상 color 설정
         const Object& obj = objects[i];
         const unsigned char* color = colors[color_index % 80];
         color_index++;
@@ -656,25 +718,180 @@ int Yolo::draw(cv::Mat& rgb, const std::vector<Object>& objects)
 
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
                 obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
+
+        // 추가
+        std::vector<cv::Point2i> upPoints, rightPoints, leftPoints, downPoints;
+
+        cv::Mat mask_rgb(rgb.size(), CV_8UC1, cv::Scalar(0));
+
+        // 이미지의 모든 픽셀 루프
         for (int y = 0; y < rgb.rows; y++) {
             uchar* image_ptr = rgb.ptr(y);
             const float* mask_ptr = obj.mask.ptr<float>(y);
+
             for (int x = 0; x < rgb.cols; x++) {
+                // 마스크의 값이 0.XX 이상이면 해당 픽셀에 색상 적용
                 if (mask_ptr[x] >= 0.65)
                 {
                     image_ptr[0] = cv::saturate_cast<uchar>(image_ptr[0] * 0.5 + color[2] * 0.5);
                     image_ptr[1] = cv::saturate_cast<uchar>(image_ptr[1] * 0.5 + color[1] * 0.5);
                     image_ptr[2] = cv::saturate_cast<uchar>(image_ptr[2] * 0.5 + color[0] * 0.5);
+
+
+                    mask_rgb.at<uchar>(y,x) = 255; // 마스크의 이진화 이미지 생성
+
+
+                    // Find edges and classify the direction
+//                    if (y > 0 && y < rgb.rows - 1) {
+//                        if (obj.mask.at<float>(y-1, x) < 0.65 && obj.mask.at<float>(y+1, x) >= 0.65) {
+//                            upPoints.push_back(cv::Point2i(x,y));
+//                        } else if (obj.mask.at<float>(y+1, x) < 0.65 && obj.mask.at<float>(y-1, x) >= 0.65) {
+//                            downPoints.push_back(cv::Point2i(x,y));
+//                        }
+//                    }
+//
+//                    if (x > 0 && x < rgb.cols - 1) {
+//                        if (obj.mask.at<float>(y, x+1) < 0.65 && obj.mask.at<float>(y, x-1) >= 0.65) {
+//                            rightPoints.push_back(cv::Point2i(x,y));
+//                        } else if (obj.mask.at<float>(y, x-1) < 0.65 && obj.mask.at<float>(y, x+1) >= 0.65) {
+//                            leftPoints.push_back(cv::Point2i(x,y));
+//                        }
+//                    }
+
+                    if (y > 0 && obj.mask.at<float>(y - 1, x) < 0.65) upPoints.emplace_back(x, y);
+                    if (y < rgb.rows - 1 && obj.mask.at<float>(y + 1, x) < 0.65) downPoints.emplace_back(x, y);
+                    if (x > 0 && obj.mask.at<float>(y, x - 1) < 0.65) leftPoints.emplace_back(x, y);
+                    if (x < rgb.cols - 1 && obj.mask.at<float>(y, x + 1) < 0.65) rightPoints.emplace_back(x, y);
                 }
                 image_ptr += 3;
             }
         }
+
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10)); // 5x5 rectangle
+
+        // Apply morphological opening operation
+        cv::morphologyEx(mask_rgb, mask_rgb, cv::MORPH_OPEN, kernel);
+
+        // 1. Canny edge detection
+        cv::Mat edges;
+        cv::Canny(mask_rgb, edges, 50, 150);
+
+        // 2. Find contours
+        std::vector<std::vector<cv::Point>> contours;
+        std::vector<cv::Vec4i> hierarchy;
+        cv::findContours(edges, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        // 3. Approximate contours to find rectangle vertices
+        for (size_t i = 0; i < contours.size(); i++) {
+            std::vector<cv::Point> hull;
+            cv::convexHull(contours[i], hull);
+            std::vector<cv::Point> approx;
+            cv::approxPolyDP(hull, approx, cv::arcLength(hull, true)*0.02, true);
+            if (approx.size() == 4) {
+                // 4. Draw the rectangle
+                for (int j = 0; j < 4; j++) {
+                    cv::line(rgb, approx[j], approx[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
+                }
+            }
+        }
+
+
+
+
+        //추가
+//        float upSlope = calculateSlope(upPoints);
+//        float upIntercept = calculateIntercept(upPoints, upSlope);
+//
+//        float downSlope = calculateSlope(downPoints);
+//        float downIntercept = calculateIntercept(downPoints, downSlope);
+//
+//        float leftSlope = calculateSlope(leftPoints);
+//        float leftIntercept = calculateIntercept(leftPoints, leftSlope);
+//
+//        float rightSlope = calculateSlope(rightPoints);
+//        float rightIntercept = calculateIntercept(rightPoints, rightSlope);
+//
+//        cv::Point2f upLeftIntersection = findIntersection(upSlope, upIntercept, leftSlope, leftIntercept);
+//        cv::Point2f upRightIntersection = findIntersection(upSlope, upIntercept, rightSlope, rightIntercept);
+//        cv::Point2f downLeftIntersection = findIntersection(downSlope, downIntercept, leftSlope, leftIntercept);
+//        cv::Point2f downRightIntersection = findIntersection(downSlope, downIntercept, rightSlope, rightIntercept);
+//
+//        cv::Scalar topPointColor(0, 0, 255); // Red color in BGR format
+//        cv::Scalar bottomPointColor(0, 255, 255);
+//        cv::Scalar leftPointColor(0, 255, 0);
+//        cv::Scalar rightPointColor(255, 0, 0);
+//        int pointRadius = 2;
+//        int pointThickness = -1; // -1 means the circle is filled
+//
+//        // 상단 점들 그리기
+//        for(const cv::Point2i& pt : upPoints) {
+//            cv::circle(rgb, pt, pointRadius, topPointColor, pointThickness);
+//        }
+//
+//        // 우측 점들 그리기
+//        for(const cv::Point2i& pt : rightPoints) {
+//            cv::circle(rgb, pt, pointRadius, rightPointColor, pointThickness);
+//        }
+//
+//        // 좌측 점들 그리기
+//        for(const cv::Point2i& pt : leftPoints) {
+//            cv::circle(rgb, pt, pointRadius, leftPointColor, pointThickness);
+//        }
+//
+//        // 하단 점들 그리기
+//        for(const cv::Point2i& pt : downPoints) {
+//            cv::circle(rgb, pt, pointRadius, bottomPointColor, pointThickness);
+//        }
+//
+//
+//        // 직선 그리기
+//        cv::Scalar lineColor(0, 255, 0); // Green color in BGR format
+//        int thickness = 2;
+//
+//        // 상단 직선 그리기
+//        cv::Point topStart(0, upSlope * 0 + upIntercept);
+//        cv::Point topEnd(rgb.cols, upSlope * rgb.cols + upIntercept);
+//        cv::line(rgb, topStart, topEnd, lineColor, thickness);
+//
+//        // 하단 직선 그리기
+//        cv::Point bottomStart(0, downSlope * 0 + downIntercept);
+//        cv::Point bottomEnd(rgb.cols, downSlope * rgb.cols + downIntercept);
+//        cv::line(rgb, bottomStart, bottomEnd, lineColor, thickness);
+//
+//        // 왼쪽 직선 그리기
+//        cv::Point leftStart(0, leftSlope * 0 + leftIntercept);
+//        cv::Point leftEnd(rgb.cols, leftSlope * rgb.cols + leftIntercept);
+//        cv::line(rgb, leftStart, leftEnd, lineColor, thickness);
+//
+//        // 오른쪽 직선 그리기
+//        cv::Point rightStart(0, rightSlope * 0 + rightIntercept);
+//        cv::Point rightEnd(rgb.cols, rightSlope * rgb.cols + rightIntercept);
+//        cv::line(rgb, rightStart, rightEnd, lineColor, thickness);
+//
+//
+//
+//        // 원의 반경을 설정합니다.
+//        int radius = 5;
+//        cv::Scalar red_color(0, 0, 255); // Red color in BGR format
+//
+//        // 교차점들에 점을 찍습니다.
+//        cv::circle(rgb, upLeftIntersection, radius, red_color, -1); // -1 means filled circle
+//        cv::circle(rgb, upRightIntersection, radius, red_color, -1);
+//        cv::circle(rgb, downLeftIntersection, radius, red_color, -1);
+//        cv::circle(rgb, downRightIntersection, radius, red_color, -1);
+
+
+
+
+
+        // 탐지된 객체 주위에 바운딩 박스 그리기
         cv::rectangle(rgb, obj.rect, cc, 2);
 
         char text[256];
         sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
 
         int baseLine = 0;
+        // 텍스트 크기 가져옴
         cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
 
         int x = obj.rect.x;
@@ -684,9 +901,11 @@ int Yolo::draw(cv::Mat& rgb, const std::vector<Object>& objects)
         if (x + label_size.width > rgb.cols)
             x = rgb.cols - label_size.width;
 
+        // 텍스트 레이블을 그릴 백그라운드 박스를 그림
         cv::rectangle(rgb, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
+        // 객체의 이름과 확률을 그림
         cv::putText(rgb, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }

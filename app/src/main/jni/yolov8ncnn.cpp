@@ -123,18 +123,19 @@ void MyNdkCamera::on_image_render(cv::Mat& rgb) const
 {
     // nanodet
     {
+        // 멀티스레딩 환경에서 동시성 제어를 위한 뮤텍스 잠금 기능
         ncnn::MutexLockGuard g(lock);
 
         if (g_yolo)
         {
             std::vector<Object> objects;
-            g_yolo->detect(rgb, objects);
+            g_yolo->detect(rgb, objects); // rgb 이미지에 대한 객체 탐지 정보를 objects에 저장
 
-            g_yolo->draw(rgb, objects);
+            g_yolo->draw(rgb, objects); // objects 정보를 rgb 이미지 위에 바운딩 박스 등을 그림
         }
         else
         {
-            draw_unsupported(rgb);
+            draw_unsupported(rgb); // unsupported 출력
         }
     }
 
@@ -177,6 +178,7 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_Yolov8Ncnn_loadModel(JNIE
         return JNI_FALSE;
     }
 
+    // AAssetManager: assets 폴더 제어 등을 위한 Asset Manager에 대한 포인터
     AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
 
     __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "loadModel %p", mgr);
@@ -254,15 +256,22 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_Yolov8Ncnn_closeCamera(JN
 }
 
 // public native boolean setOutputWindow(Surface surface);
+// JAVA의 com.tencent.yolov8ncnn.Yolov8Ncnn 클래스의 setOutputWindow 메서드.
+// 네이티브 윈도우 설정
+/*
+ * JNIEXPORT: JNI 함수임을 나타냄
+ * jboolean : Java의 boolean 타입을 나타내는 JNI 타입
+ *
+ * */
 JNIEXPORT jboolean JNICALL Java_com_tencent_yolov8ncnn_Yolov8Ncnn_setOutputWindow(JNIEnv* env, jobject thiz, jobject surface)
 {
-    ANativeWindow* win = ANativeWindow_fromSurface(env, surface);
+    ANativeWindow* win = ANativeWindow_fromSurface(env, surface); // Java에서 넘어온 serface 객체를 C++의 네이티브 윈도우 형태로 변환
 
     __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);
 
-    g_camera->set_window(win);
+    g_camera->set_window(win); // 전역변수인 g_camera의 set_window 메서드로 전달
 
-    return JNI_TRUE;
+    return JNI_TRUE; // JNI 함수 호출 후 성공인 경우 Java로 결과 반환
 }
 
 }
