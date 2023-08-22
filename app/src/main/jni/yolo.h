@@ -42,12 +42,9 @@ public:
 
     int load(AAssetManager* mgr, const char* modeltype, int target_size, const float* mean_vals, const float* norm_vals, bool use_gpu = false);
 
-    int detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_threshold = 0.7f, float nms_threshold = 0.5f);
+    int detect(const cv::Mat& rgb, std::vector<Object>& objects, float prob_threshold = 0.8f, float nms_threshold = 0.5f);
 
     int draw(cv::Mat& rgb, const std::vector<Object>& objects);
-
-    // 추가
-    static int getContourMinRect(const Object& obj, cv::Point2f& vtx);
 
 private:
     ncnn::Net yolo;
@@ -62,6 +59,9 @@ private:
 
     ncnn::UnlockedPoolAllocator blob_pool_allocator;
     ncnn::PoolAllocator workspace_pool_allocator;
+
+    static const float MIN_AREA_SIZE;
+    static const float MIN_SOLIDITY_RATIO;
 };
 
 #endif // YOLOV8_SEG_H

@@ -14,12 +14,17 @@
 
 #include "yolo.h"
 
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "cpu.h"
 
 #define MAX_STRIDE 32
+
+const float Yolo::MIN_AREA_SIZE = 0.01;        // 예: 전체 이미지 픽셀의 1%
+const float Yolo::MIN_SOLIDITY_RATIO = 0.25;   // 예: 0.25로 설정
+
 
 static void slice(const ncnn::Mat& in, ncnn::Mat& out, int start, int end, int axis)
 {
@@ -716,198 +721,208 @@ int Yolo::draw(cv::Mat& rgb, const std::vector<Object>& objects)
 
         cv::Scalar cc(color[0], color[1], color[2]);
 
+        // 이진화 영역
+        cv::Mat binary_mask = cv::Mat::zeros(obj.mask.size(), CV_8UC1);
+
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
                 obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
-
-        // 추가
-        std::vector<cv::Point2i> upPoints, rightPoints, leftPoints, downPoints;
-
-        cv::Mat mask_rgb(rgb.size(), CV_8UC1, cv::Scalar(0));
 
         // 이미지의 모든 픽셀 루프
         for (int y = 0; y < rgb.rows; y++) {
             uchar* image_ptr = rgb.ptr(y);
             const float* mask_ptr = obj.mask.ptr<float>(y);
 
+            uchar* binary_mask_ptr = binary_mask.ptr(y);
             for (int x = 0; x < rgb.cols; x++) {
                 // 마스크의 값이 0.XX 이상이면 해당 픽셀에 색상 적용
-                if (mask_ptr[x] >= 0.65)
+                if (mask_ptr[x] >= 0.8)
                 {
                     image_ptr[0] = cv::saturate_cast<uchar>(image_ptr[0] * 0.5 + color[2] * 0.5);
                     image_ptr[1] = cv::saturate_cast<uchar>(image_ptr[1] * 0.5 + color[1] * 0.5);
                     image_ptr[2] = cv::saturate_cast<uchar>(image_ptr[2] * 0.5 + color[0] * 0.5);
 
-
-                    mask_rgb.at<uchar>(y,x) = 255; // 마스크의 이진화 이미지 생성
-
-
-                    // Find edges and classify the direction
-//                    if (y > 0 && y < rgb.rows - 1) {
-//                        if (obj.mask.at<float>(y-1, x) < 0.65 && obj.mask.at<float>(y+1, x) >= 0.65) {
-//                            upPoints.push_back(cv::Point2i(x,y));
-//                        } else if (obj.mask.at<float>(y+1, x) < 0.65 && obj.mask.at<float>(y-1, x) >= 0.65) {
-//                            downPoints.push_back(cv::Point2i(x,y));
-//                        }
-//                    }
-//
-//                    if (x > 0 && x < rgb.cols - 1) {
-//                        if (obj.mask.at<float>(y, x+1) < 0.65 && obj.mask.at<float>(y, x-1) >= 0.65) {
-//                            rightPoints.push_back(cv::Point2i(x,y));
-//                        } else if (obj.mask.at<float>(y, x-1) < 0.65 && obj.mask.at<float>(y, x+1) >= 0.65) {
-//                            leftPoints.push_back(cv::Point2i(x,y));
-//                        }
-//                    }
-
-                    if (y > 0 && obj.mask.at<float>(y - 1, x) < 0.65) upPoints.emplace_back(x, y);
-                    if (y < rgb.rows - 1 && obj.mask.at<float>(y + 1, x) < 0.65) downPoints.emplace_back(x, y);
-                    if (x > 0 && obj.mask.at<float>(y, x - 1) < 0.65) leftPoints.emplace_back(x, y);
-                    if (x < rgb.cols - 1 && obj.mask.at<float>(y, x + 1) < 0.65) rightPoints.emplace_back(x, y);
+                    binary_mask_ptr[x] = 255;
                 }
                 image_ptr += 3;
             }
         }
 
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10)); // 5x5 rectangle
+        // 1. 모폴로지 연산을 사용하여 노이즈 제거
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10,10));
+        cv::morphologyEx(binary_mask, binary_mask, cv::MORPH_OPEN, kernel);
 
-        // Apply morphological opening operation
-        cv::morphologyEx(mask_rgb, mask_rgb, cv::MORPH_OPEN, kernel);
-
-        // 1. Canny edge detection
-        cv::Mat edges;
-        cv::Canny(mask_rgb, edges, 50, 150);
-
-        // 2. Find contours
+        // 외곽선 검출
         std::vector<std::vector<cv::Point>> contours;
-        std::vector<cv::Vec4i> hierarchy;
-        cv::findContours(edges, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::findContours(binary_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-        // 3. Approximate contours to find rectangle vertices
-        for (size_t i = 0; i < contours.size(); i++) {
-            std::vector<cv::Point> hull;
-            cv::convexHull(contours[i], hull);
-            std::vector<cv::Point> approx;
-            cv::approxPolyDP(hull, approx, cv::arcLength(hull, true)*0.02, true);
-            if (approx.size() == 4) {
-                // 4. Draw the rectangle
-                for (int j = 0; j < 4; j++) {
-                    cv::line(rgb, approx[j], approx[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
-                }
+
+
+
+
+//        std::vector<std::vector<cv::Point>> approxContours;
+//        for (const auto& contour : contours) {
+//            double area = cv::contourArea(contour);
+//            if (area < MIN_AREA_SIZE) continue;
+//
+//            // 근사화
+//            std::vector<cv::Point> approx;
+//            cv::approxPolyDP(contour, approx, 0.04 * cv::arcLength(contour, true), true);
+//
+//            if (approx.size() == 4) {  // 4개의 꼭짓점을 가진 경우만 고려
+//                cv::RotatedRect rrect = cv::minAreaRect(approx);
+//                float width = rrect.size.width;
+//                float height = rrect.size.height;
+//                float aspectRatio = width / height;
+//
+//                // 비율 검증
+//                if (0.7 < aspectRatio && aspectRatio < 1.5) { // 예: 비율 범위 설정
+//                    approxContours.push_back(approx);
+//                }
+//            }
+//        }
+//
+//        // 근사화된 외곽선 시각화
+//        cv::drawContours(rgb, approxContours, -1, cv::Scalar(0, 255, 0), 2);
+
+
+
+
+        //
+        cv::RotatedRect largestRect;
+        double largestArea = 0.0;
+
+        for (const auto& contour : contours) {
+            cv::RotatedRect rect = cv::minAreaRect(contour);
+            double area = rect.size.width * rect.size.height;
+            if (area > largestArea) {
+                largestArea = area;
+                largestRect = rect;
             }
         }
 
+        for (size_t i = 0; i < contours.size(); i++) {
+            // 2. 외곽선 영역의 크기에 따른 필터링
+            double area = cv::contourArea(contours[i]);
+            if (area < MIN_AREA_SIZE) {  // MIN_AREA_SIZE는 원하는 최소 영역 크기입니다.
+                cv::drawContours(binary_mask, contours, i, cv::Scalar(0), -1);  // 영역 채우기
+                continue;
+            }
 
+            // 3. 외곽선의 복잡도에 따른 필터링
+            double perimeter = cv::arcLength(contours[i], true);
+            double solidity = area / perimeter;
+            if (solidity < MIN_SOLIDITY_RATIO) {  // MIN_SOLIDITY_RATIO는 원하는 최소 복잡도 비율입니다.
+                cv::drawContours(binary_mask, contours, i, cv::Scalar(0), -1);
+            }
+        }
 
-
-        //추가
-//        float upSlope = calculateSlope(upPoints);
-//        float upIntercept = calculateIntercept(upPoints, upSlope);
+//        // 여기서 largestRect에는 가장 큰 영역의 정보가 저장되어 있습니다.
+//        // 해당 영역만을 그려줍니다.
+//        cv::Point2f vertices[4];
+//        largestRect.points(vertices);
 //
-//        float downSlope = calculateSlope(downPoints);
-//        float downIntercept = calculateIntercept(downPoints, downSlope);
-//
-//        float leftSlope = calculateSlope(leftPoints);
-//        float leftIntercept = calculateIntercept(leftPoints, leftSlope);
-//
-//        float rightSlope = calculateSlope(rightPoints);
-//        float rightIntercept = calculateIntercept(rightPoints, rightSlope);
-//
-//        cv::Point2f upLeftIntersection = findIntersection(upSlope, upIntercept, leftSlope, leftIntercept);
-//        cv::Point2f upRightIntersection = findIntersection(upSlope, upIntercept, rightSlope, rightIntercept);
-//        cv::Point2f downLeftIntersection = findIntersection(downSlope, downIntercept, leftSlope, leftIntercept);
-//        cv::Point2f downRightIntersection = findIntersection(downSlope, downIntercept, rightSlope, rightIntercept);
-//
-//        cv::Scalar topPointColor(0, 0, 255); // Red color in BGR format
-//        cv::Scalar bottomPointColor(0, 255, 255);
-//        cv::Scalar leftPointColor(0, 255, 0);
-//        cv::Scalar rightPointColor(255, 0, 0);
-//        int pointRadius = 2;
-//        int pointThickness = -1; // -1 means the circle is filled
-//
-//        // 상단 점들 그리기
-//        for(const cv::Point2i& pt : upPoints) {
-//            cv::circle(rgb, pt, pointRadius, topPointColor, pointThickness);
+//        // 가장 큰 외곽선에 대한 최소 넓이 직사각형 그리기
+//        for (int j = 0; j < 4; j++) {
+//            cv::line(rgb, vertices[j], vertices[(j+1) % 4], cv::Scalar(0, 255, 0), 2);
 //        }
+
+        // 최소 거리 꼭짓점 검출
+        cv::Point2f vertices[4];
+        largestRect.points(vertices);
+
+        std::vector<cv::Point2f> minimumDistancePoints(4); // 최소거리 꼭짓점을 저장할 변수
+
+        for (int i = 0; i < 4; i++) {  // 각 꼭짓점에 대해
+            double minDistance = std::numeric_limits<double>::max();
+            cv::Point2f closestPoint;
+
+            for (const auto& contour : contours) {
+                for (const auto& point : contour) {
+                    double distance = cv::norm(vertices[i] - cv::Point2f(point.x, point.y));
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestPoint = point;
+                    }
+                }
+            }
+
+            minimumDistancePoints[i] = closestPoint;
+
+//            // 결과를 시각화하기 위한 코드 (선택사항)
+//            cv::circle(rgb, closestPoint, 5, cv::Scalar(0, 0, 255), -1);  // 빨간색으로 최소거리 꼭짓점 표시
+//            cv::line(rgb, vertices[i], closestPoint, cv::Scalar(255, 0, 0), 2);  // 두 포인트 사이의 선 그리기
+        }
+
+        cv::Scalar skyBlue = cv::Scalar(135, 235, 206);  // BGR로 하늘색 정의
+        cv::Scalar Blue = cv::Scalar(81, 137, 120);
+
+        std::vector<cv::Point> convertedPoints;
+        for (const auto& pt : minimumDistancePoints) {
+            convertedPoints.emplace_back(pt.x, pt.y);
+        }
+
+        // 투명 마스크 이미지 생성
+        cv::Mat mask = cv::Mat::zeros(rgb.size(), rgb.type());
+        cv::Mat result(rgb.size(), rgb.type());
+
+        // 마스크에 하늘색으로 사각형 채우기
+        cv::fillConvexPoly(mask, convertedPoints, Blue);
+
+        // 원본 이미지와 마스크 이미지를 조합하여 반투명한 효과 얻기
+        double alpha = 0.2;  // 투명도 설정 (0.5는 50% 투명도)
+        cv::addWeighted(mask, alpha, rgb, 1, 0, result);
+
+        // result 이미지를 원래의 rgb 이미지에 복사
+        result.copyTo(rgb);
+
+        // 하늘색 선으로 꼭짓점들 연결
+        for (int i = 0; i < 4; i++) {
+            cv::line(rgb, convertedPoints[i], convertedPoints[(i + 1) % 4], skyBlue, 5);
+        }
+
+
+//        // 외곽선 시각화
+//        cv::drawContours(rgb, contours, -1, cv::Scalar(242, 238, 105), 2);
 //
-//        // 우측 점들 그리기
-//        for(const cv::Point2i& pt : rightPoints) {
-//            cv::circle(rgb, pt, pointRadius, rightPointColor, pointThickness);
+//        // 모든 외곽선에 대해 처리하려면 for 루프를 사용할 수 있습니다.
+//        for (const auto& contour : contours) {
+//            if (contour.size() < 3) continue; // MAR을 계산하기 위해선 최소 3개의 점이 필요
+//
+//            // 최소 넓이 직사각형 계산
+//            cv::RotatedRect rotated_rect = cv::minAreaRect(contour);
+//            cv::Point2f vertices[4];
+//            rotated_rect.points(vertices);
+//
+//            // 최소 넓이 직사각형 그리기
+//            for (int j = 0; j < 4; j++) {
+//                cv::line(rgb, vertices[j], vertices[(j+1) % 4], cv::Scalar(0, 255, 0), 2);
+//            }
 //        }
-//
-//        // 좌측 점들 그리기
-//        for(const cv::Point2i& pt : leftPoints) {
-//            cv::circle(rgb, pt, pointRadius, leftPointColor, pointThickness);
-//        }
-//
-//        // 하단 점들 그리기
-//        for(const cv::Point2i& pt : downPoints) {
-//            cv::circle(rgb, pt, pointRadius, bottomPointColor, pointThickness);
-//        }
-//
-//
-//        // 직선 그리기
-//        cv::Scalar lineColor(0, 255, 0); // Green color in BGR format
-//        int thickness = 2;
-//
-//        // 상단 직선 그리기
-//        cv::Point topStart(0, upSlope * 0 + upIntercept);
-//        cv::Point topEnd(rgb.cols, upSlope * rgb.cols + upIntercept);
-//        cv::line(rgb, topStart, topEnd, lineColor, thickness);
-//
-//        // 하단 직선 그리기
-//        cv::Point bottomStart(0, downSlope * 0 + downIntercept);
-//        cv::Point bottomEnd(rgb.cols, downSlope * rgb.cols + downIntercept);
-//        cv::line(rgb, bottomStart, bottomEnd, lineColor, thickness);
-//
-//        // 왼쪽 직선 그리기
-//        cv::Point leftStart(0, leftSlope * 0 + leftIntercept);
-//        cv::Point leftEnd(rgb.cols, leftSlope * rgb.cols + leftIntercept);
-//        cv::line(rgb, leftStart, leftEnd, lineColor, thickness);
-//
-//        // 오른쪽 직선 그리기
-//        cv::Point rightStart(0, rightSlope * 0 + rightIntercept);
-//        cv::Point rightEnd(rgb.cols, rightSlope * rgb.cols + rightIntercept);
-//        cv::line(rgb, rightStart, rightEnd, lineColor, thickness);
-//
-//
-//
-//        // 원의 반경을 설정합니다.
-//        int radius = 5;
-//        cv::Scalar red_color(0, 0, 255); // Red color in BGR format
-//
-//        // 교차점들에 점을 찍습니다.
-//        cv::circle(rgb, upLeftIntersection, radius, red_color, -1); // -1 means filled circle
-//        cv::circle(rgb, upRightIntersection, radius, red_color, -1);
-//        cv::circle(rgb, downLeftIntersection, radius, red_color, -1);
-//        cv::circle(rgb, downRightIntersection, radius, red_color, -1);
-
-
-
-
 
         // 탐지된 객체 주위에 바운딩 박스 그리기
-        cv::rectangle(rgb, obj.rect, cc, 2);
+//        cv::rectangle(rgb, obj.rect, cc, 2);
 
-        char text[256];
-        sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
-
-        int baseLine = 0;
-        // 텍스트 크기 가져옴
-        cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
-
-        int x = obj.rect.x;
-        int y = obj.rect.y - label_size.height - baseLine;
-        if (y < 0)
-            y = 0;
-        if (x + label_size.width > rgb.cols)
-            x = rgb.cols - label_size.width;
+//        char text[256];
+//        sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
+//
+//        int baseLine = 0;
+//        // 텍스트 크기 가져옴
+//        cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+//
+//        int x = obj.rect.x;
+//        int y = obj.rect.y - label_size.height - baseLine;
+//        if (y < 0)
+//            y = 0;
+//        if (x + label_size.width > rgb.cols)
+//            x = rgb.cols - label_size.width;
 
         // 텍스트 레이블을 그릴 백그라운드 박스를 그림
-        cv::rectangle(rgb, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-                      cv::Scalar(255, 255, 255), -1);
+//        cv::rectangle(rgb, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+//                      cv::Scalar(255, 255, 255), -1);
 
         // 객체의 이름과 확률을 그림
-        cv::putText(rgb, text, cv::Point(x, y + label_size.height),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+//        cv::putText(rgb, text, cv::Point(x, y + label_size.height),
+//                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
 
     return 0;
